@@ -1,7 +1,11 @@
 import json
+import logging
 from pathlib import Path
 
-CONFIG_PATH = Path(__file__).resolve().parent / "resources" / "config.json"
+from utils.logger_setup import setup_logger
+
+CONFIG_PATH = Path("config/app.json")
+LOGGER = logging.getLogger(__name__)
 
 
 def read_config(path: Path) -> dict:
@@ -62,9 +66,10 @@ def fizz_buzz(value: int) -> str:
 def main() -> None:
     """JSONの上限値を読み込み、1..max を出力する。"""
     # JSONの上限値を読み込み、1..max を出力する。
+    setup_logger(level="INFO", console=True, file=False)
     max_value = load_max_from_json(CONFIG_PATH)
     for i in range(1, max_value + 1):
-        print(fizz_buzz(i))
+        LOGGER.info(fizz_buzz(i))
 
 
 if __name__ == "__main__":

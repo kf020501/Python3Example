@@ -1,0 +1,11 @@
+{
+    "level": "INFO",
+    "console": true,
+    "console_level": null,
+    "file": true,
+    "file_level": "DEBUG",
+    "file_dir": "logs",
+    "file_prefix": "app_",
+    "fmt": "%(asctime)s.%(msecs)03d %(levelname)s: %(message)s",
+    "datefmt": "%Y-%m-%d %H:%M:%S"
+}

@@ -3,83 +3,87 @@
 """
 ロガー初期化を提供するユーティリティモジュール
 
-Args:
-    logger_cfg (Dict[str, Any]):
-        設定項目をまとめた辞書。以下のキーを解釈する：
-        - level (str): デフォルトのログレベル (デフォルト: "INFO")
-        - console_output (dict):
-            - enabled (bool): コンソール出力を有効にするかどうか (デフォルト: True)
-            - level (str): コンソール用ログレベル (デフォルト: root level または level)
-        - file_output (dict):
-            - enabled (bool): ファイル出力を有効にするかどうか (デフォルト: False)
-            - level (str): ファイル用ログレベル (デフォルト: root level または level)
-            - output_directory (str): ログファイルを保存するディレクトリ (デフォルト: "logs")
-            - file_prefix (str): ログファイル名の接頭辞 (デフォルト: 空文字)
+【設定ファイル】
+config/utils_logger_setup.json
+
+【設定項目】
+- level        : ログレベル (DEBUG/INFO/WARNING/ERROR/CRITICAL)
+- console      : コンソール出力の有無 (true/false)
+- console_level: コンソール出力レベル (省略時はlevelを使用)
+- file         : ファイル出力の有無 (true/false)
+- file_level   : ファイル出力レベル (省略時はlevelを使用)
+- file_dir     : ログファイル出力ディレクトリ (file=true時は必須)
+- file_prefix  : ログファイル名プレフィックス
+- fmt          : ログフォーマット
+- datefmt      : 日時フォーマット
+
+【使用例】
+from utils.logger_setup import setup_logger
+
+logger = setup_logger()  # デフォルト設定ファイルを使用
+logger = setup_logger("config/custom.json")  # カスタム設定ファイルを使用
+logger.info("メッセージ")
 """
-import logging
-import sys
 import json
-from pathlib import Path
+import logging
+import os
+import sys
 from datetime import datetime
+from pathlib import Path
 
-def setup_logger(logger_cfg):
-    # ルート設定レベル
-    config_root_name = logger_cfg.get('level', 'INFO').upper()
-    config_root_level = getattr(logging, config_root_name, logging.INFO)
+# デフォルト設定ファイルパス
+DEFAULT_CONFIG_PATH = Path("config/utils_logger_setup.json")
 
-    # コンソール設定
-    console_cfg = logger_cfg.get('console_output', {})
-    console_enabled = console_cfg.get('enabled', True)
-    console_name = console_cfg.get('level', config_root_name).upper()
-    console_level = getattr(logging, console_name, config_root_level)
 
-    # ファイル設定
-    file_cfg = logger_cfg.get('file_output', {})
-    file_enabled = file_cfg.get('enabled', False)
-    file_name = file_cfg.get('level', config_root_name).upper()
-    file_level = getattr(logging, file_name, config_root_level)
-    output_directory = file_cfg.get('output_directory', 'logs')
-    file_prefix = file_cfg.get('file_prefix', '')
+def setup_logger(config_path: Path | str | None = None) -> logging.Logger:
+    """設定ファイルに基づいてロガーを初期化する。"""
+    # 設定ファイル読み込み
+    path = Path(config_path) if config_path else DEFAULT_CONFIG_PATH
+    with path.open("r", encoding="utf-8") as f:
+        config = json.load(f)
 
-    # フォーマッタ作成
-    fmt = '%(asctime)s.%(msecs)03d %(levelname)s: %(message)s'
-    datefmt = '%Y-%m-%d %H:%M:%S'
-    formatter = logging.Formatter(fmt=fmt, datefmt=datefmt)
+    level = config["level"]
+    console = config["console"]
+    console_level = config.get("console_level")
+    file = config["file"]
+    file_level = config.get("file_level")
+    file_dir = config.get("file_dir")
+    file_prefix = config["file_prefix"]
+    fmt = config["fmt"]
+    datefmt = config["datefmt"]
 
     # ルートロガー取得
     logger = logging.getLogger()
 
-    # ルートロガーのレベルを、各ハンドラの最小レベルか config_root_level のいずれか低い方に設定
-    handler_levels = []
-    if console_enabled:
-        handler_levels.append(console_level)
-    if file_enabled:
-        handler_levels.append(file_level)
-    if handler_levels:
-        root_level = min(handler_levels)
-    else:
-        root_level = config_root_level
-    logger.setLevel(root_level)
+    # 既存ハンドラをクリアして二重出力を防ぐ
+    for handler in list(logger.handlers):
+        logger.removeHandler(handler)
 
-    # コンソールハンドラ
-    if console_enabled:
+    # レベル値取得
+    root_level = getattr(logging, level.upper())
+    console_lvl = getattr(logging, (console_level or level).upper())
+    file_lvl = getattr(logging, (file_level or level).upper())
+
+    formatter = logging.Formatter(fmt=fmt, datefmt=datefmt)
+    handler_levels: list[int] = []
+
+    if console:
         ch = logging.StreamHandler(sys.stdout)
-        ch.setLevel(console_level)
+        ch.setLevel(console_lvl)
         ch.setFormatter(formatter)
         logger.addHandler(ch)
+        handler_levels.append(console_lvl)
 
-    # ファイルハンドラ
-    if file_enabled:
-        base_dir = Path(__file__).resolve().parent
-        log_dir = base_dir / output_directory
+    if file:
+        log_dir = Path(file_dir).expanduser()
         log_dir.mkdir(parents=True, exist_ok=True)
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        log_path = log_dir / f"{file_prefix}{timestamp}.log"
-        fh = logging.FileHandler(log_path, encoding='utf-8')
-        fh.setLevel(file_level)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_path = log_dir / f"{file_prefix}{timestamp}_{os.getpid()}.log"
+        fh = logging.FileHandler(log_path, encoding="utf-8")
+        fh.setLevel(file_lvl)
         fh.setFormatter(formatter)
         logger.addHandler(fh)
+        handler_levels.append(file_lvl)
 
-    # 設定内容を1行JSONでデバッグ出力
-    logger.debug(json.dumps(logger_cfg, ensure_ascii=False, separators=(',',':')))
-    logger.debug("Logger initialized successfully")
+    logger.setLevel(min(handler_levels) if handler_levels else root_level)
+    return logger
