@@ -1,6 +1,7 @@
-# .pyで出力するログファイル
+# 一般
 *.log
 logs
+temp
 
 # Pythonのキャッシュ
 __pycache__/
