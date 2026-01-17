@@ -1,0 +1,10 @@
+# .pyで出力するログファイル
+*.log
+logs
+
+# Pythonのキャッシュ
+__pycache__/
+
+# カバレッジレポート
+.coverage
+htmlcov/

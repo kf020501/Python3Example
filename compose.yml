@@ -1,0 +1,21 @@
+services:
+  python: &python
+    # image: pythonexample:dev
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    working_dir: /workspace
+    user: "${UID}:${GID}"
+    environment:
+      HOME: /workspace
+      PYTHONPATH: /workspace/src
+    volumes:
+      - .:/workspace
+    tty: true
+
+  python-debug:
+    <<: *python
+    ports:
+      - "5678:5678"
+    command: >
+      bash -lc "python -m debugpy --listen 0.0.0.0:5678 --wait-for-client src/app.py"
