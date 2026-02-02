@@ -10,7 +10,8 @@ RUN python3.12 -m venv /opt/.venv \
   && /opt/.venv/bin/pip install --upgrade pip
 
 COPY requirements.txt /tmp/requirements.txt
-RUN /opt/.venv/bin/pip install --no-cache-dir -r /tmp/requirements.txt
+RUN /opt/.venv/bin/pip install --no-cache-dir -r /tmp/requirements.txt && \
+    /opt/.venv/bin/playwright install chromium
 
 ENV VIRTUAL_ENV=/opt/.venv
 ENV PATH="/opt/.venv/bin:$PATH"
